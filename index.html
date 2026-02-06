@@ -363,6 +363,26 @@
                     </div>
                     <input type="file" id="importConfigFile" accept=".json" style="display: none;">
                     <button id="importConfigBtn" style="width: 100%; padding: 8px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">Import from File</button>
+                    <div style="border-top: 1px solid rgba(89,0,0,0.3); margin-top: 10px; padding-top: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;" onclick="var el = document.getElementById('shareCodeSection'); el.style.display = el.style.display === 'none' ? 'block' : 'none';">
+                            <span style="color: #cc3333; font-weight: bold; font-size: 0.85em;">Share Code</span>
+                            <span id="shareCodeToggle" style="color: #888; font-size: 0.8em;">[+]</span>
+                        </div>
+                        <div id="shareCodeSection" style="display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+                            <button id="generateCodeBtn" style="padding: 8px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">Generate Share Code</button>
+                            <button id="loadCodeBtn" style="padding: 8px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">Load Share Code</button>
+                        </div>
+                        <div id="shareCodeArea" style="display: none; margin-top: 6px;">
+                            <textarea id="shareCodeText" readonly style="width: 100%; height: 60px; padding: 6px; border-radius: 6px; border: 1px solid rgba(89,0,0,0.3); background: rgba(0,0,0,0.4); color: #00ff88; font-family: monospace; font-size: 0.75em; resize: none;"></textarea>
+                            <button id="copyCodeBtn" style="width: 100%; padding: 6px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.8em; margin-top: 4px;">Copy Code</button>
+                        </div>
+                        <div id="loadCodeArea" style="display: none; margin-top: 6px;">
+                            <textarea id="loadCodeText" placeholder="Paste share code here..." style="width: 100%; height: 60px; padding: 6px; border-radius: 6px; border: 1px solid rgba(89,0,0,0.3); background: rgba(0,0,0,0.4); color: #fff; font-family: monospace; font-size: 0.75em; resize: none;"></textarea>
+                            <button id="applyCodeBtn" style="width: 100%; padding: 6px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.8em; margin-top: 4px;">Apply Code</button>
+                        </div>
+                        </div>
+                    </div>
                     <div id="overlaysList" style="margin-top: 10px; font-size: 0.85em;"></div>
                 </div>
 
@@ -1159,6 +1179,9 @@
 
     <script>
         // Official WCProducts Motor Specs (2024)
+        // Graph overlay stats (declared early so available everywhere)
+        var graphStats = { spinUpTime: '', recoveryTime: '', sustainedFire: '' };
+
         // X60: https://docs.wcproducts.com/welcome/electronics/kraken-x60/kraken-x60-motor/overview-and-features/motor-performance
         // X44: https://docs.wcproducts.com/welcome/electronics/kraken-x44/kraken-x44-motor/overview-and-features/motor-performance
         const MOTORS = {
@@ -2556,6 +2579,21 @@
             ctx.textAlign = 'left';
             ctx.fillText('Ball Trajectory (side view)', padding, 25);
 
+            // Voltage in top-right
+            var vLabel = parseFloat(document.getElementById('mainVoltageInput').value).toFixed(2) + 'V';
+            if (document.getElementById('motorSetup').value === 'dual') {
+                vLabel += ' / ' + parseFloat(document.getElementById('backVoltageInput').value).toFixed(2) + 'V';
+            }
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.fillStyle = '#cc3333';
+            ctx.fillText('Voltage: ' + vLabel, canvas.width - padding, 20);
+            ctx.fillStyle = '#aaa';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Spin-Up: ' + graphStats.spinUpTime, canvas.width - padding, 36);
+            ctx.fillText('Recovery: ' + graphStats.recoveryTime, canvas.width - padding, 50);
+            ctx.fillText(graphStats.sustainedFire, canvas.width - padding, 64);
+
             return { goalDistanceM, goalBottomM, goalTopM, trajectory, collisionPoint, collisionType, scoredThrough };
         }
 
@@ -2974,6 +3012,11 @@
                 sustainedRating = 'POOR - Significant speed loss (' + minRPMPercent.toFixed(0) + '%)';
             }
             document.getElementById('resultSustainedFire').textContent = sustainedRating;
+
+            // Update graph overlay stats
+            graphStats.spinUpTime = (spinUpTime * 1000).toFixed(0) + ' ms';
+            graphStats.recoveryTime = (recoveryTime * 1000).toFixed(0) + ' ms';
+            graphStats.sustainedFire = sustainedRating;
 
             // Thermal analysis
             const loadPercent = 0.25; // Estimate 25% average load for shooter maintenance
@@ -3618,6 +3661,21 @@
             ctx.fillStyle = '#888';
             ctx.fillText('Active balls: ' + animatedBalls.filter(b => b.x !== undefined).length, padding, 45);
 
+            // Voltage in top-right
+            var vLabel = parseFloat(document.getElementById('mainVoltageInput').value).toFixed(2) + 'V';
+            if (document.getElementById('motorSetup').value === 'dual') {
+                vLabel += ' / ' + parseFloat(document.getElementById('backVoltageInput').value).toFixed(2) + 'V';
+            }
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.fillStyle = '#cc3333';
+            ctx.fillText('Voltage: ' + vLabel, canvas.width - padding, 20);
+            ctx.fillStyle = '#aaa';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Spin-Up: ' + graphStats.spinUpTime, canvas.width - padding, 36);
+            ctx.fillText('Recovery: ' + graphStats.recoveryTime, canvas.width - padding, 50);
+            ctx.fillText(graphStats.sustainedFire, canvas.width - padding, 64);
+
             // Axis labels
             ctx.fillStyle = '#888';
             ctx.font = '12px sans-serif';
@@ -3864,7 +3922,7 @@
         function updateOverlaysList() {
             const listDiv = document.getElementById('overlaysList');
             if (overlayTrajectories.length === 0) {
-                listDiv.innerHTML = '<em style="color: #888;">No overlays</em>';
+                listDiv.innerHTML = '';
             } else {
                 let html = '<strong style="color: #cc3333;">Overlays:</strong>';
                 overlayTrajectories.forEach((o, i) => {
@@ -3985,6 +4043,62 @@
             };
             reader.readAsText(file);
             this.value = ''; // Reset file input
+        });
+
+        // Share Code: Generate
+        document.getElementById('generateCodeBtn').addEventListener('click', function() {
+            var config = getFullConfig();
+            config._name = document.getElementById('configName').value.trim() || 'Shared Config';
+            var json = JSON.stringify(config);
+            var code = btoa(json);
+            document.getElementById('shareCodeText').value = code;
+            document.getElementById('shareCodeArea').style.display = 'block';
+            document.getElementById('loadCodeArea').style.display = 'none';
+        });
+
+        // Share Code: Copy to clipboard
+        document.getElementById('copyCodeBtn').addEventListener('click', function() {
+            var textarea = document.getElementById('shareCodeText');
+            textarea.select();
+            document.execCommand('copy');
+            document.getElementById('copyCodeBtn').textContent = 'Copied!';
+            setTimeout(function() {
+                document.getElementById('copyCodeBtn').textContent = 'Copy Code';
+            }, 2000);
+        });
+
+        // Share Code: Show load area
+        document.getElementById('loadCodeBtn').addEventListener('click', function() {
+            document.getElementById('loadCodeArea').style.display = 'block';
+            document.getElementById('shareCodeArea').style.display = 'none';
+        });
+
+        // Share Code: Apply pasted code
+        document.getElementById('applyCodeBtn').addEventListener('click', function() {
+            var code = document.getElementById('loadCodeText').value.trim();
+            if (!code) {
+                alert('Please paste a share code first');
+                return;
+            }
+            try {
+                var config = JSON.parse(atob(code));
+                applyConfig(config);
+                var name = config._name || 'Shared Config';
+                document.getElementById('configName').value = name;
+
+                // Auto-save to saved configs
+                var configs = loadSavedConfigs();
+                configs[name] = config;
+                saveConfigsToStorage(configs);
+                updateConfigDropdown();
+                document.getElementById('savedConfigsDropdown').value = name;
+
+                document.getElementById('loadCodeArea').style.display = 'none';
+                document.getElementById('loadCodeText').value = '';
+                alert('Config "' + name + '" loaded and saved!');
+            } catch (err) {
+                alert('Invalid share code. Please check and try again.');
+            }
         });
 
         // Add current trajectory to graph as overlay
