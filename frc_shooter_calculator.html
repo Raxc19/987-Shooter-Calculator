@@ -970,6 +970,13 @@
             <div class="panel results-panel">
                 <h2>Goal Settings</h2>
                 <div class="control-group">
+                    <label>Goal Orientation</label>
+                    <select id="goalOrientation" onchange="calculate()">
+                        <option value="horizontal">Horizontal (open top - ball drops in)</option>
+                        <option value="vertical">Vertical (front opening - ball flies through)</option>
+                    </select>
+                </div>
+                <div class="control-group">
                     <label>Distance to Goal Center</label>
                     <div class="input-slider-combo">
                         <div class="input-row">
@@ -1756,6 +1763,7 @@
                 angle: parseFloat(document.getElementById('angleInput').value),
 
                 // Goal settings
+                goalOrientation: document.getElementById('goalOrientation').value,
                 goalDistance: parseFloat(document.getElementById('goalDistanceInput').value),
                 goalBottomHeight: parseFloat(document.getElementById('goalBottomHeightInput').value),
                 goalSize: parseFloat(document.getElementById('goalSizeInput').value),
@@ -2307,54 +2315,101 @@
             const goalX = toCanvasX(goalDistanceM);
             const goalBottom = toCanvasY(goalBottomM);
             const goalTop = toCanvasY(goalTopM);
+            const isVerticalGoal = config.goalOrientation === 'vertical';
 
             // Convert goal width from inches to canvas pixels
             const goalWidthM = (config.goalWidth || 48) * 0.0254;
             const goalHalfWidthPx = Math.max(10, (goalWidthM / 2) * scale);
+            const goalDepthPx = Math.max(10, goalWidthM * scale); // For vertical goal, width = depth
 
-            // Goal structure - Open top funnel/basket design
-            // Two vertical walls, open at top where balls drop in
-            ctx.strokeStyle = '#8B0000';
-            ctx.lineWidth = 6;
+            if (isVerticalGoal) {
+                // VERTICAL GOAL - Opening faces the shooter (left side)
+                // Ball must fly through the front opening between goalBottomM and goalTopM
+                ctx.strokeStyle = '#8B0000';
+                ctx.lineWidth = 6;
 
-            // Left wall (from ground up to top)
-            ctx.beginPath();
-            ctx.moveTo(goalX - goalHalfWidthPx, toCanvasY(0));
-            ctx.lineTo(goalX - goalHalfWidthPx, goalTop);
-            ctx.stroke();
+                // Top wall (horizontal, extends right from goal distance)
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalTop);
+                ctx.lineTo(goalX + goalDepthPx, goalTop);
+                ctx.stroke();
 
-            // Right wall (from ground up to top)
-            ctx.beginPath();
-            ctx.moveTo(goalX + goalHalfWidthPx, toCanvasY(0));
-            ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
-            ctx.stroke();
+                // Bottom wall (horizontal, extends right from goal distance)
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalBottom);
+                ctx.lineTo(goalX + goalDepthPx, goalBottom);
+                ctx.stroke();
 
-            // Bottom of goal (the floor/funnel bottom)
-            ctx.beginPath();
-            ctx.moveTo(goalX - goalHalfWidthPx, goalBottom);
-            ctx.lineTo(goalX + goalHalfWidthPx, goalBottom);
-            ctx.stroke();
+                // Back wall (vertical, at the back of the goal)
+                ctx.beginPath();
+                ctx.moveTo(goalX + goalDepthPx, goalTop);
+                ctx.lineTo(goalX + goalDepthPx, goalBottom);
+                ctx.stroke();
 
-            // Top opening (highlighted green) - this is where balls enter from above
-            ctx.strokeStyle = '#00ff88';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(goalX - goalHalfWidthPx, goalTop);
-            ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
-            ctx.stroke();
+                // Front opening (highlighted green) - this is where balls enter
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalTop);
+                ctx.lineTo(goalX, goalBottom);
+                ctx.stroke();
 
-            // Draw green arrows pointing down to show this is the entry
-            ctx.fillStyle = '#00ff88';
-            ctx.beginPath();
-            ctx.moveTo(goalX, goalTop + 15);
-            ctx.lineTo(goalX - 10, goalTop + 5);
-            ctx.lineTo(goalX + 10, goalTop + 5);
-            ctx.closePath();
-            ctx.fill();
+                // Draw green arrow pointing right to show entry direction
+                ctx.fillStyle = '#00ff88';
+                ctx.beginPath();
+                ctx.moveTo(goalX + 15, toCanvasY((goalBottomM + goalTopM) / 2));
+                ctx.lineTo(goalX + 5, toCanvasY((goalBottomM + goalTopM) / 2) - 10);
+                ctx.lineTo(goalX + 5, toCanvasY((goalBottomM + goalTopM) / 2) + 10);
+                ctx.closePath();
+                ctx.fill();
 
-            // Goal interior fill (the funnel area)
-            ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
-            ctx.fillRect(goalX - goalHalfWidthPx, goalTop, goalHalfWidthPx * 2, goalBottom - goalTop);
+                // Goal interior fill
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
+                ctx.fillRect(goalX, goalTop, goalDepthPx, goalBottom - goalTop);
+            } else {
+                // HORIZONTAL GOAL - Open top funnel/basket design (original)
+                ctx.strokeStyle = '#8B0000';
+                ctx.lineWidth = 6;
+
+                // Left wall (from ground up to top)
+                ctx.beginPath();
+                ctx.moveTo(goalX - goalHalfWidthPx, toCanvasY(0));
+                ctx.lineTo(goalX - goalHalfWidthPx, goalTop);
+                ctx.stroke();
+
+                // Right wall (from ground up to top)
+                ctx.beginPath();
+                ctx.moveTo(goalX + goalHalfWidthPx, toCanvasY(0));
+                ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
+                ctx.stroke();
+
+                // Bottom of goal (the floor/funnel bottom)
+                ctx.beginPath();
+                ctx.moveTo(goalX - goalHalfWidthPx, goalBottom);
+                ctx.lineTo(goalX + goalHalfWidthPx, goalBottom);
+                ctx.stroke();
+
+                // Top opening (highlighted green) - this is where balls enter from above
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(goalX - goalHalfWidthPx, goalTop);
+                ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
+                ctx.stroke();
+
+                // Draw green arrows pointing down to show this is the entry
+                ctx.fillStyle = '#00ff88';
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalTop + 15);
+                ctx.lineTo(goalX - 10, goalTop + 5);
+                ctx.lineTo(goalX + 10, goalTop + 5);
+                ctx.closePath();
+                ctx.fill();
+
+                // Goal interior fill (the funnel area)
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
+                ctx.fillRect(goalX - goalHalfWidthPx, goalTop, goalHalfWidthPx * 2, goalBottom - goalTop);
+            }
 
             // Draw shooter
             const launchHeightM = config.launchHeight * 0.0254;
@@ -2362,7 +2417,7 @@
             const shooterY = toCanvasY(launchHeightM);
 
             ctx.fillStyle = '#666';
-            ctx.fillRect(shooterX - 15, toCanvasY(0), 30, toCanvasY(0) - shooterY);
+            ctx.fillRect(shooterX - 15, shooterY, 30, toCanvasY(0) - shooterY);
 
             // Draw launch angle indicator
             const angleRad = (90 - config.angle) * Math.PI / 180;
@@ -2374,9 +2429,7 @@
             ctx.lineTo(shooterX + arrowLen * Math.cos(angleRad), shooterY - arrowLen * Math.sin(angleRad));
             ctx.stroke();
 
-            // Goal collision detection - OPEN TOP FUNNEL DESIGN
-            // Ball must drop INTO the goal from above through the top opening
-            // Side walls block the ball from entering from the side
+            // Goal collision detection
             const goalLeftM = goalDistanceM - goalWidthM / 2;
             const goalRightM = goalDistanceM + goalWidthM / 2;
 
@@ -2385,59 +2438,92 @@
             let collisionType = null;
             let scoredThrough = false;
 
-            for (let i = 1; i < trajectory.length; i++) {
-                const prev = trajectory[i - 1];
-                const curr = trajectory[i];
+            if (isVerticalGoal) {
+                // VERTICAL GOAL collision detection
+                // Ball scores by passing through the front opening (y between goalBottomM and goalTopM at goalDistanceM)
+                // Ball is blocked if it hits the top or bottom wall
+                const goalBackM = goalDistanceM + goalWidthM; // Back wall distance
 
-                if (curr.y < 0) break; // Hit ground
+                for (let i = 1; i < trajectory.length; i++) {
+                    const prev = trajectory[i - 1];
+                    const curr = trajectory[i];
 
-                // Check if ball is descending through the TOP OPENING (scoring)
-                // Ball must be within the goal width (x between goalLeftM and goalRightM)
-                // and descending through goalTopM
-                if (curr.x >= goalLeftM && curr.x <= goalRightM) {
-                    // Ball is horizontally over the goal
-                    if (prev.y > goalTopM && curr.y <= goalTopM) {
-                        // Ball is descending through the top opening - SCORE!
-                        const t = (goalTopM - prev.y) / (curr.y - prev.y);
-                        const crossX = prev.x + t * (curr.x - prev.x);
-                        scoredThrough = true;
-                        collisionPoint = { x: crossX, y: goalTopM };
-                        collisionType = 'scored';
-                        break;
+                    if (curr.y < 0) break; // Hit ground
+
+                    // Check if ball crosses the goal front plane (goalDistanceM)
+                    if (prev.x < goalDistanceM && curr.x >= goalDistanceM) {
+                        const t = (goalDistanceM - prev.x) / (curr.x - prev.x);
+                        const crossY = prev.y + t * (curr.y - prev.y);
+
+                        if (crossY >= goalBottomM && crossY <= goalTopM) {
+                            // Ball passes through the opening - SCORE!
+                            scoredThrough = true;
+                            collisionPoint = { x: goalDistanceM, y: crossY };
+                            collisionType = 'scored';
+                            break;
+                        } else if (crossY < goalBottomM) {
+                            // Ball hits below the opening
+                            collisionPoint = { x: goalDistanceM, y: crossY };
+                            collisionType = 'hit_wall';
+                            break;
+                        } else {
+                            // Ball hits above the opening
+                            collisionPoint = { x: goalDistanceM, y: crossY };
+                            collisionType = 'hit_wall';
+                            break;
+                        }
                     }
                 }
+            } else {
+                // HORIZONTAL GOAL collision detection - OPEN TOP FUNNEL DESIGN
+                // Ball must drop INTO the goal from above through the top opening
+                // Side walls block the ball from entering from the side
+                for (let i = 1; i < trajectory.length; i++) {
+                    const prev = trajectory[i - 1];
+                    const curr = trajectory[i];
 
-                // Check if ball hits LEFT WALL (approaching from left, below top opening)
-                if (prev.x < goalLeftM && curr.x >= goalLeftM) {
-                    const t = (goalLeftM - prev.x) / (curr.x - prev.x);
-                    const crossY = prev.y + t * (curr.y - prev.y);
+                    if (curr.y < 0) break; // Hit ground
 
-                    // If crossing below the top opening, it hits the wall
-                    if (crossY <= goalTopM) {
-                        collisionPoint = { x: goalLeftM, y: crossY };
-                        collisionType = 'hit_wall';
+                    // Check if ball is descending through the TOP OPENING (scoring)
+                    if (curr.x >= goalLeftM && curr.x <= goalRightM) {
+                        if (prev.y > goalTopM && curr.y <= goalTopM) {
+                            const t = (goalTopM - prev.y) / (curr.y - prev.y);
+                            const crossX = prev.x + t * (curr.x - prev.x);
+                            scoredThrough = true;
+                            collisionPoint = { x: crossX, y: goalTopM };
+                            collisionType = 'scored';
+                            break;
+                        }
+                    }
+
+                    // Check if ball hits LEFT WALL
+                    if (prev.x < goalLeftM && curr.x >= goalLeftM) {
+                        const t = (goalLeftM - prev.x) / (curr.x - prev.x);
+                        const crossY = prev.y + t * (curr.y - prev.y);
+                        if (crossY <= goalTopM) {
+                            collisionPoint = { x: goalLeftM, y: crossY };
+                            collisionType = 'hit_wall';
+                            break;
+                        }
+                    }
+
+                    // Check if ball hits RIGHT WALL
+                    if (prev.x > goalRightM && curr.x <= goalRightM) {
+                        const t = (goalRightM - prev.x) / (curr.x - prev.x);
+                        const crossY = prev.y + t * (curr.y - prev.y);
+                        if (crossY <= goalTopM) {
+                            collisionPoint = { x: goalRightM, y: crossY };
+                            collisionType = 'hit_wall';
+                            break;
+                        }
+                    }
+
+                    // Check if ball hits the BOTTOM of the funnel
+                    if (scoredThrough && curr.y <= goalBottomM) {
+                        collisionPoint = { x: curr.x, y: goalBottomM };
+                        collisionType = 'scored_bottom';
                         break;
                     }
-                    // If crossing above the top, ball passes over (continues trajectory)
-                }
-
-                // Check if ball hits RIGHT WALL (if ball somehow approaches from right)
-                if (prev.x > goalRightM && curr.x <= goalRightM) {
-                    const t = (goalRightM - prev.x) / (curr.x - prev.x);
-                    const crossY = prev.y + t * (curr.y - prev.y);
-
-                    if (crossY <= goalTopM) {
-                        collisionPoint = { x: goalRightM, y: crossY };
-                        collisionType = 'hit_wall';
-                        break;
-                    }
-                }
-
-                // Check if ball hits the BOTTOM of the funnel (after entering from top)
-                if (scoredThrough && curr.y <= goalBottomM) {
-                    collisionPoint = { x: curr.x, y: goalBottomM };
-                    collisionType = 'scored_bottom';
-                    break;
                 }
             }
 
@@ -2835,20 +2921,37 @@
             let statusClass = '';
 
             // Use collision detection results from drawTrajectory
+            const isVerticalGoalResult = config.goalOrientation === 'vertical';
             if (drawResult.scoredThrough) {
-                goalStatus = 'SCORE! Ball drops into goal';
+                goalStatus = isVerticalGoalResult ? 'SCORE! Ball flies through opening' : 'SCORE! Ball drops into goal';
                 statusClass = 'success';
             } else if (drawResult.collisionType === 'hit_wall') {
-                goalStatus = 'BLOCKED - Hits goal wall (ball too low)';
+                if (isVerticalGoalResult) {
+                    goalStatus = heightAtGoal !== null && heightAtGoal > goalTopM
+                        ? 'BLOCKED - Ball too high, hits above opening'
+                        : 'BLOCKED - Ball too low, hits below opening';
+                } else {
+                    goalStatus = 'BLOCKED - Hits goal wall (ball too low)';
+                }
                 statusClass = 'error';
             } else if (heightAtGoal === null) {
                 goalStatus = 'SHORT - Ball lands before reaching goal';
                 statusClass = 'error';
+            } else if (isVerticalGoalResult) {
+                if (heightAtGoal >= goalBottomM && heightAtGoal <= goalTopM) {
+                    goalStatus = 'ON TARGET - Ball at opening height';
+                    statusClass = 'success';
+                } else if (heightAtGoal < goalBottomM) {
+                    goalStatus = 'TOO LOW - Ball below opening';
+                    statusClass = 'error';
+                } else {
+                    goalStatus = 'TOO HIGH - Ball above opening';
+                    statusClass = 'error';
+                }
             } else if (heightAtGoal < goalTopM) {
                 goalStatus = 'TOO LOW - Ball below rim, will hit wall';
                 statusClass = 'error';
             } else {
-                // Ball is above the rim at goal distance - check if it descends into goal
                 goalStatus = 'PASSING OVER - Ball clears the goal';
                 statusClass = 'warning';
             }
@@ -2899,8 +3002,10 @@
                 document.getElementById('resultHeightAtGoal').textContent = 'N/A (too short)';
             }
 
-            // Horizontal margin calculation (goal width - ball diameter)
-            const goalWidth = config.goalWidth || 12;
+            // Margin calculation (opening size - ball diameter)
+            const goalWidth = isVerticalGoalResult
+                ? (config.goalSize || 24)   // Vertical: opening height is the clearance
+                : (config.goalWidth || 12); // Horizontal: opening width is the clearance
             const horizMargin = goalWidth - BALL_DIAMETER_IN;
             const marginPerSide = horizMargin / 2;
             let marginColor = '';
@@ -3461,14 +3566,20 @@
             const goalX = toCanvasX(goalDistanceM);
             const goalBottom = toCanvasY(goalBottomM);
             const goalTop = toCanvasY(goalTopM);
+            const isVerticalGoal = config.goalOrientation === 'vertical';
 
             // Convert goal width from inches to canvas pixels
             const goalWidthM = (config.goalWidth || 48) * 0.0254;
             const goalHalfWidthPx = Math.max(10, (goalWidthM / 2) * scale);
+            const goalDepthPx = Math.max(10, goalWidthM * scale);
 
             // Goal interior fill (draw first so it's behind everything)
             ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
-            ctx.fillRect(goalX - goalHalfWidthPx + 3, goalTop, goalHalfWidthPx * 2 - 6, goalBottom - goalTop);
+            if (isVerticalGoal) {
+                ctx.fillRect(goalX + 3, goalTop, goalDepthPx - 6, goalBottom - goalTop);
+            } else {
+                ctx.fillRect(goalX - goalHalfWidthPx + 3, goalTop, goalHalfWidthPx * 2 - 6, goalBottom - goalTop);
+            }
 
             // Goal collision bounds (in meters)
             const goalLeftM = goalDistanceM - goalWidthM / 2;
@@ -3481,36 +3592,62 @@
             ctx.moveTo(toCanvasX(trajectory[0].x), toCanvasY(trajectory[0].y));
 
             let trajectoryCollision = null;
-            for (let i = 1; i < trajectory.length; i++) {
-                const prev = trajectory[i - 1];
-                const curr = trajectory[i];
 
-                if (curr.y < 0) break; // Hit ground
+            if (isVerticalGoal) {
+                // VERTICAL GOAL collision detection for animation
+                for (let i = 1; i < trajectory.length; i++) {
+                    const prev = trajectory[i - 1];
+                    const curr = trajectory[i];
 
-                // Check for wall collision (ball approaching goal below rim level)
-                if (prev.x < goalLeftM && curr.x >= goalLeftM) {
-                    const t = (goalLeftM - prev.x) / (curr.x - prev.x);
-                    const crossY = prev.y + t * (curr.y - prev.y);
-                    if (crossY <= goalTopM) {
-                        // Wall hit!
-                        trajectoryCollision = { x: goalLeftM, y: crossY, type: 'wall' };
-                        ctx.lineTo(toCanvasX(goalLeftM), toCanvasY(crossY));
-                        break;
+                    if (curr.y < 0) break;
+
+                    if (prev.x < goalDistanceM && curr.x >= goalDistanceM) {
+                        const t = (goalDistanceM - prev.x) / (curr.x - prev.x);
+                        const crossY = prev.y + t * (curr.y - prev.y);
+
+                        if (crossY >= goalBottomM && crossY <= goalTopM) {
+                            trajectoryCollision = { x: goalDistanceM, y: crossY, type: 'scored' };
+                            ctx.lineTo(toCanvasX(goalDistanceM), toCanvasY(crossY));
+                            break;
+                        } else {
+                            trajectoryCollision = { x: goalDistanceM, y: crossY, type: 'wall' };
+                            ctx.lineTo(toCanvasX(goalDistanceM), toCanvasY(crossY));
+                            break;
+                        }
                     }
-                }
 
-                // Check for scoring (descending through top opening)
-                if (curr.x >= goalLeftM && curr.x <= goalRightM) {
-                    if (prev.y > goalTopM && curr.y <= goalTopM) {
-                        const t = (goalTopM - prev.y) / (curr.y - prev.y);
-                        const crossX = prev.x + t * (curr.x - prev.x);
-                        trajectoryCollision = { x: crossX, y: goalTopM, type: 'scored' };
-                        ctx.lineTo(toCanvasX(crossX), toCanvasY(goalTopM));
-                        break;
+                    ctx.lineTo(toCanvasX(curr.x), toCanvasY(curr.y));
+                }
+            } else {
+                // HORIZONTAL GOAL collision detection for animation (original)
+                for (let i = 1; i < trajectory.length; i++) {
+                    const prev = trajectory[i - 1];
+                    const curr = trajectory[i];
+
+                    if (curr.y < 0) break;
+
+                    if (prev.x < goalLeftM && curr.x >= goalLeftM) {
+                        const t = (goalLeftM - prev.x) / (curr.x - prev.x);
+                        const crossY = prev.y + t * (curr.y - prev.y);
+                        if (crossY <= goalTopM) {
+                            trajectoryCollision = { x: goalLeftM, y: crossY, type: 'wall' };
+                            ctx.lineTo(toCanvasX(goalLeftM), toCanvasY(crossY));
+                            break;
+                        }
                     }
-                }
 
-                ctx.lineTo(toCanvasX(curr.x), toCanvasY(curr.y));
+                    if (curr.x >= goalLeftM && curr.x <= goalRightM) {
+                        if (prev.y > goalTopM && curr.y <= goalTopM) {
+                            const t = (goalTopM - prev.y) / (curr.y - prev.y);
+                            const crossX = prev.x + t * (curr.x - prev.x);
+                            trajectoryCollision = { x: crossX, y: goalTopM, type: 'scored' };
+                            ctx.lineTo(toCanvasX(crossX), toCanvasY(goalTopM));
+                            break;
+                        }
+                    }
+
+                    ctx.lineTo(toCanvasX(curr.x), toCanvasY(curr.y));
+                }
             }
             ctx.stroke();
 
@@ -3519,7 +3656,6 @@
                 const cx = toCanvasX(trajectoryCollision.x);
                 const cy = toCanvasY(trajectoryCollision.y);
                 if (trajectoryCollision.type === 'wall') {
-                    // Red X for wall hit
                     ctx.strokeStyle = '#ff6600';
                     ctx.lineWidth = 3;
                     ctx.beginPath();
@@ -3529,7 +3665,6 @@
                     ctx.lineTo(cx - 8, cy + 8);
                     ctx.stroke();
                 } else if (trajectoryCollision.type === 'scored') {
-                    // Green check for score
                     ctx.strokeStyle = '#00ff88';
                     ctx.lineWidth = 3;
                     ctx.beginPath();
@@ -3600,40 +3735,79 @@
             ctx.strokeStyle = '#8B0000';
             ctx.lineWidth = 6;
 
-            // Left wall (from ground up to top)
-            ctx.beginPath();
-            ctx.moveTo(goalX - goalHalfWidthPx, toCanvasY(0));
-            ctx.lineTo(goalX - goalHalfWidthPx, goalTop);
-            ctx.stroke();
+            if (isVerticalGoal) {
+                // VERTICAL GOAL walls
+                // Top wall
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalTop);
+                ctx.lineTo(goalX + goalDepthPx, goalTop);
+                ctx.stroke();
 
-            // Right wall (from ground up to top)
-            ctx.beginPath();
-            ctx.moveTo(goalX + goalHalfWidthPx, toCanvasY(0));
-            ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
-            ctx.stroke();
+                // Bottom wall
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalBottom);
+                ctx.lineTo(goalX + goalDepthPx, goalBottom);
+                ctx.stroke();
 
-            // Bottom of goal
-            ctx.beginPath();
-            ctx.moveTo(goalX - goalHalfWidthPx, goalBottom);
-            ctx.lineTo(goalX + goalHalfWidthPx, goalBottom);
-            ctx.stroke();
+                // Back wall
+                ctx.beginPath();
+                ctx.moveTo(goalX + goalDepthPx, goalTop);
+                ctx.lineTo(goalX + goalDepthPx, goalBottom);
+                ctx.stroke();
 
-            // Top opening (highlighted green)
-            ctx.strokeStyle = '#00ff88';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(goalX - goalHalfWidthPx, goalTop);
-            ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
-            ctx.stroke();
+                // Front opening (highlighted green)
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalTop);
+                ctx.lineTo(goalX, goalBottom);
+                ctx.stroke();
 
-            // Green arrow pointing down
-            ctx.fillStyle = '#00ff88';
-            ctx.beginPath();
-            ctx.moveTo(goalX, goalTop + 15);
-            ctx.lineTo(goalX - 10, goalTop + 5);
-            ctx.lineTo(goalX + 10, goalTop + 5);
-            ctx.closePath();
-            ctx.fill();
+                // Green arrow pointing right
+                ctx.fillStyle = '#00ff88';
+                ctx.beginPath();
+                ctx.moveTo(goalX + 15, toCanvasY((goalBottomM + goalTopM) / 2));
+                ctx.lineTo(goalX + 5, toCanvasY((goalBottomM + goalTopM) / 2) - 10);
+                ctx.lineTo(goalX + 5, toCanvasY((goalBottomM + goalTopM) / 2) + 10);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // HORIZONTAL GOAL walls (original)
+                // Left wall (from ground up to top)
+                ctx.beginPath();
+                ctx.moveTo(goalX - goalHalfWidthPx, toCanvasY(0));
+                ctx.lineTo(goalX - goalHalfWidthPx, goalTop);
+                ctx.stroke();
+
+                // Right wall (from ground up to top)
+                ctx.beginPath();
+                ctx.moveTo(goalX + goalHalfWidthPx, toCanvasY(0));
+                ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
+                ctx.stroke();
+
+                // Bottom of goal
+                ctx.beginPath();
+                ctx.moveTo(goalX - goalHalfWidthPx, goalBottom);
+                ctx.lineTo(goalX + goalHalfWidthPx, goalBottom);
+                ctx.stroke();
+
+                // Top opening (highlighted green)
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(goalX - goalHalfWidthPx, goalTop);
+                ctx.lineTo(goalX + goalHalfWidthPx, goalTop);
+                ctx.stroke();
+
+                // Green arrow pointing down
+                ctx.fillStyle = '#00ff88';
+                ctx.beginPath();
+                ctx.moveTo(goalX, goalTop + 15);
+                ctx.lineTo(goalX - 10, goalTop + 5);
+                ctx.lineTo(goalX + 10, goalTop + 5);
+                ctx.closePath();
+                ctx.fill();
+            }
 
             // Draw status
             ctx.fillStyle = '#fff';
@@ -3741,6 +3915,7 @@
                 angle: document.getElementById('angleInput').value,
 
                 // Goal settings
+                goalOrientation: document.getElementById('goalOrientation').value,
                 goalDistance: document.getElementById('goalDistanceInput').value,
                 goalBottomHeight: document.getElementById('goalBottomHeightInput').value,
                 goalSize: document.getElementById('goalSizeInput').value,
@@ -3823,6 +3998,7 @@
             setValue('angleInput', 'angleSlider', config.angle);
 
             // Goal settings
+            if (config.goalOrientation) document.getElementById('goalOrientation').value = config.goalOrientation;
             setValue('goalDistanceInput', 'goalDistanceSlider', config.goalDistance);
             setValue('goalBottomHeightInput', 'goalBottomHeightSlider', config.goalBottomHeight);
             setValue('goalSizeInput', 'goalSizeSlider', config.goalSize);
