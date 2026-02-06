@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team 987 High Rollers - Shooter Calculator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -24,11 +27,44 @@
             margin: 0 auto;
         }
 
-        h1 {
+        .team-header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .team-header .team-number {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .team-header .team-logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 8px;
+        }
+
+        .team-header .dice-logo {
+            height: 86px;
+            width: auto;
+        }
+
+        .team-header .team-name {
+            font-family: 'Pinyon Script', cursive;
+            font-size: 3.45em;
+            color: #8B1A1A;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .team-header .calculator-title {
+            font-size: 1.1em;
             color: #cc3333;
-            text-shadow: 0 0 10px rgba(180, 0, 0, 0.5);
+            font-weight: bold;
+            margin-top: 5px;
         }
 
         .subtitle {
@@ -288,7 +324,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>Team 987 High Rollers - Shooter Calculator</h1>
+        <div class="team-header">
+            <div class="team-number">Team 987</div>
+            <div class="team-logo-row">
+                <img src="dice-logo.png" alt="Dice Logo" class="dice-logo">
+                <span class="team-name">The High Rollers</span>
+                <img src="dice-logo.png" alt="Dice Logo" class="dice-logo">
+            </div>
+            <div class="calculator-title">Shooter Calculator</div>
+        </div>
         <p class="subtitle">FRC 2026 REBUILT - Real-time trajectory simulation</p>
 
         <div class="main-layout">
