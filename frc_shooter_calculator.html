@@ -238,7 +238,7 @@
             border: 1px solid rgba(89, 0, 0, 0.2);
         }
 
-        #trajectoryCanvas {
+        #trajectoryCanvas, #voltageCompCanvas {
             display: block;
         }
 
@@ -369,9 +369,10 @@
                             <span id="shareCodeToggle" style="color: #888; font-size: 0.8em;">[+]</span>
                         </div>
                         <div id="shareCodeSection" style="display: none;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px;">
                             <button id="generateCodeBtn" style="padding: 8px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">Generate Share Code</button>
                             <button id="loadCodeBtn" style="padding: 8px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">Load Share Code</button>
+                            <button id="onshapeCodeBtn" style="padding: 8px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">Onshape Code</button>
                         </div>
                         <div id="shareCodeArea" style="display: none; margin-top: 6px;">
                             <textarea id="shareCodeText" readonly style="width: 100%; height: 60px; padding: 6px; border-radius: 6px; border: 1px solid rgba(89,0,0,0.3); background: rgba(0,0,0,0.4); color: #00ff88; font-family: monospace; font-size: 0.75em; resize: none;"></textarea>
@@ -380,6 +381,11 @@
                         <div id="loadCodeArea" style="display: none; margin-top: 6px;">
                             <textarea id="loadCodeText" placeholder="Paste share code here..." style="width: 100%; height: 60px; padding: 6px; border-radius: 6px; border: 1px solid rgba(89,0,0,0.3); background: rgba(0,0,0,0.4); color: #fff; font-family: monospace; font-size: 0.75em; resize: none;"></textarea>
                             <button id="applyCodeBtn" style="width: 100%; padding: 6px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.8em; margin-top: 4px;">Apply Code</button>
+                        </div>
+                        <div id="onshapeCodeArea" style="display: none; margin-top: 6px;">
+                            <label style="font-size: 0.8em; color: #aaa;">Paste this into Onshape FeatureScript (Share Code mode):</label>
+                            <textarea id="onshapeCodeText" readonly style="width: 100%; height: 36px; padding: 6px; border-radius: 6px; border: 1px solid rgba(89,0,0,0.3); background: rgba(0,0,0,0.4); color: #00ff88; font-family: monospace; font-size: 0.85em; resize: none;"></textarea>
+                            <button id="copyOnshapeCodeBtn" style="width: 100%; padding: 6px; background: #590000; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.8em; margin-top: 4px;">Copy Onshape Code</button>
                         </div>
                         </div>
                     </div>
@@ -961,9 +967,16 @@
                 </div>
             </div>
 
-            <!-- Center Panel - Trajectory Canvas -->
-            <div class="panel canvas-container">
+            <!-- Center Panel - Trajectory / Voltage Comp Canvas -->
+            <div class="panel canvas-container" id="centerCanvasPanel">
+                <div style="position: absolute; top: 8px; right: 12px; z-index: 10; display: flex; gap: 0;">
+                    <button id="btnShowTrajectory" onclick="switchCanvasView('trajectory')"
+                        style="padding: 4px 10px; font-size: 11px; border: 1px solid rgba(89,0,0,0.4); background: rgba(89,0,0,0.3); color: #ddd; cursor: pointer; border-radius: 4px 0 0 4px;">Trajectory</button>
+                    <button id="btnShowVoltageComp" onclick="switchCanvasView('voltage')"
+                        style="padding: 4px 10px; font-size: 11px; border: 1px solid rgba(89,0,0,0.4); background: transparent; color: #888; cursor: pointer; border-radius: 0 4px 4px 0;">Voltage Comp</button>
+                </div>
                 <canvas id="trajectoryCanvas"></canvas>
+                <canvas id="voltageCompCanvas" style="display: none;"></canvas>
             </div>
 
             <!-- Right Panel - Results & Goal Settings -->
@@ -1144,6 +1157,28 @@
                     <div class="result-item full-width" style="background: rgba(255, 136, 0, 0.2);">
                         <div class="label">Sustained Fire Capability</div>
                         <div class="value" id="resultSustainedFire">-</div>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <h2>Voltage Compensation</h2>
+                </div>
+                <div class="results-grid">
+                    <div class="result-item">
+                        <div class="label">Voltage for Full Recovery</div>
+                        <div class="value" id="resultVoltageNeeded">-</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Max Shots at 12V</div>
+                        <div class="value" id="resultMaxShots12V">-</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">RPM at Shot 20</div>
+                        <div class="value" id="resultRPMShot20">-</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Voltage at Shot 20</div>
+                        <div class="value" id="resultVoltageShot20">-</div>
                     </div>
                 </div>
 
@@ -1723,11 +1758,62 @@
             canvas.style.width = width + 'px';
             canvas.style.height = height + 'px';
 
+            // Also resize voltage comp canvas if it's currently shown
+            if (currentCanvasView === 'voltage' && lastCompData) {
+                sizeVoltageCanvas();
+                drawVoltageCompensationGraph('voltageCompCanvas', lastCompData);
+            }
+
             calculate();
         }
 
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
+
+        // Canvas view swap: trajectory <-> voltage compensation
+        var lastCompData = null;
+        var currentCanvasView = 'trajectory';
+
+        function switchCanvasView(view) {
+            currentCanvasView = view;
+            const trajCanvas = document.getElementById('trajectoryCanvas');
+            const voltCanvas = document.getElementById('voltageCompCanvas');
+            const btnTraj = document.getElementById('btnShowTrajectory');
+            const btnVolt = document.getElementById('btnShowVoltageComp');
+
+            if (view === 'voltage') {
+                trajCanvas.style.display = 'none';
+                voltCanvas.style.display = 'block';
+                btnTraj.style.background = 'transparent';
+                btnTraj.style.color = '#888';
+                btnVolt.style.background = 'rgba(89,0,0,0.3)';
+                btnVolt.style.color = '#ddd';
+                // Resize and redraw voltage comp canvas to match trajectory size
+                if (lastCompData) {
+                    sizeVoltageCanvas();
+                    drawVoltageCompensationGraph('voltageCompCanvas', lastCompData);
+                }
+            } else {
+                voltCanvas.style.display = 'none';
+                trajCanvas.style.display = 'block';
+                btnVolt.style.background = 'transparent';
+                btnVolt.style.color = '#888';
+                btnTraj.style.background = 'rgba(89,0,0,0.3)';
+                btnTraj.style.color = '#ddd';
+            }
+        }
+
+        function sizeVoltageCanvas() {
+            const voltCanvas = document.getElementById('voltageCompCanvas');
+            const container = voltCanvas.parentElement;
+            const width = container.clientWidth;
+            const viewportHeight = window.innerHeight - 100;
+            const height = Math.max(500, Math.min(viewportHeight, 700));
+            voltCanvas.width = width;
+            voltCanvas.height = height;
+            voltCanvas.style.width = width + 'px';
+            voltCanvas.style.height = height + 'px';
+        }
 
         // Calculator functions
         function getConfig() {
@@ -2011,27 +2097,39 @@
         }
 
         // Calculate time to spin up from one RPM to another
-        // Uses motor torque and gear ratio
+        // Uses DC motor torque-speed model: T = T_stall × (1 - ω/ω_free)
+        // Integrated solution: t = (I × ω_free / T_stall) × ln((ω_free - ω1)/(ω_free - ω2))
         function calculateSpinUpTime(config, fromRPM, toRPM) {
             const motor = MOTORS[config.mainMotorType];
             const gearRatio = config.mainGearRatio;
-            const stallTorque = getMotorStallTorque(config.mainMotorType, config.mainUseFOC);
+            const voltage = config.mainVoltage || 12;
+            const useFOC = config.mainUseFOC;
 
-            // Motor torque at wheel shaft (torque multiplied by gear ratio)
-            // Using average torque estimate (50% of stall torque for loaded acceleration)
-            const avgTorque = stallTorque * 0.5 / gearRatio;
+            // Motor stall torque scaled to actual voltage (T_stall ∝ V)
+            const stallTorque12V = getMotorStallTorque(config.mainMotorType, useFOC);
+            const stallTorque = stallTorque12V * (voltage / 12);
+
+            // Reflect torque to wheel shaft
+            const wheelStallTorque = stallTorque / gearRatio;
+
+            // Motor no-load speed at actual voltage, reflected to wheel shaft
+            const kv = useFOC ? motor.kvFOC : motor.kvStandard;
+            const wheelFreeRPM = kv * voltage * gearRatio;
+            const wheelFreeOmega = wheelFreeRPM * (2 * Math.PI / 60);
 
             const mainInertia = calculateMainShaftInertia(config);
 
-            // Angular acceleration = Torque / Inertia
-            // alpha = T / I (rad/s^2)
-            const alpha = avgTorque / mainInertia;
+            const omega1 = fromRPM * (2 * Math.PI / 60);
+            const omega2 = toRPM * (2 * Math.PI / 60);
 
-            // Time = delta_omega / alpha
-            const deltaOmega = (toRPM - fromRPM) * (2 * Math.PI / 60);
-            const time = Math.abs(deltaOmega / alpha);
+            // Guard: target must be below motor free speed
+            const clampedOmega2 = Math.min(omega2, wheelFreeOmega * 0.999);
 
-            return time;
+            // Time constant: τ = I × ω_free / T_stall
+            const tau = mainInertia * wheelFreeOmega / wheelStallTorque;
+            const time = tau * Math.log((wheelFreeOmega - omega1) / (wheelFreeOmega - clampedOmega2));
+
+            return Math.abs(time);
         }
 
         // Thermal analysis functions
@@ -2089,30 +2187,40 @@
             return rpmLossPercent;
         }
 
-        // Multi-shot analysis
+        // Multi-shot analysis with proper exponential motor recovery model
         function analyzeMultipleShots(config, mainRPM, ballEnergy, numShots) {
             const results = [];
             let currentRPM = mainRPM;
             let totalTime = 0;
-            const shotInterval = 1 / 12; // 83.3ms between shots (12 balls/sec)
+            const ballsPerSec = config.ballsPerSec || 12;
+            const shotInterval = 1 / ballsPerSec;
+
+            // Motor recovery parameters (exponential model)
+            const motor = MOTORS[config.mainMotorType];
+            const kv = config.mainUseFOC ? motor.kvFOC : motor.kvStandard;
+            const voltage = config.mainVoltage || 12;
+            const gearRatio = config.mainGearRatio;
+            const stallTorque = getMotorStallTorque(config.mainMotorType, config.mainUseFOC) * (voltage / 12);
+            const wheelStallTorque = stallTorque / gearRatio;
+            const wheelFreeRPM = kv * voltage * gearRatio;
+            const wheelFreeOmega = wheelFreeRPM * (2 * Math.PI / 60);
+            const mainInertia = calculateMainShaftInertia(config);
+            const tau = mainInertia * wheelFreeOmega / wheelStallTorque;
+            const alpha = Math.exp(-shotInterval / tau);
 
             for (let i = 0; i < numShots; i++) {
-                const dropInfo = calculateRPMDropAfterShot(config, currentRPM, ballEnergy);
+                // Ball energy scales with RPM squared (exit velocity ∝ RPM)
+                const rpmFraction = currentRPM / mainRPM;
+                const shotBallEnergy = ballEnergy * rpmFraction * rpmFraction;
+                const dropInfo = calculateRPMDropAfterShot(config, currentRPM, shotBallEnergy);
 
                 // Recovery time to get back to target RPM
                 const recoveryTime = calculateSpinUpTime(config, dropInfo.finalRPM, mainRPM);
 
-                // If recovery time > shot interval, we shoot at reduced RPM
-                let actualRecovery = Math.min(recoveryTime, shotInterval);
-                let rpmAtNextShot = dropInfo.finalRPM;
-
-                if (recoveryTime <= shotInterval) {
-                    rpmAtNextShot = mainRPM; // Full recovery
-                } else {
-                    // Partial recovery
-                    const partialOmegaGain = (mainRPM - dropInfo.finalRPM) * (shotInterval / recoveryTime);
-                    rpmAtNextShot = dropInfo.finalRPM + partialOmegaGain;
-                }
+                // Exponential recovery: RPM(t) = RPM_free × (1-α) + RPM_after × α
+                // where α = exp(-t_shot/τ), clamped to target RPM
+                let rpmAtNextShot = wheelFreeRPM * (1 - alpha) + dropInfo.finalRPM * alpha;
+                rpmAtNextShot = Math.min(rpmAtNextShot, mainRPM);
 
                 results.push({
                     shotNum: i + 1,
@@ -2138,6 +2246,313 @@
                 totalTime: totalTime * 1000, // in ms
                 finalRPM: Math.round(currentRPM)
             };
+        }
+
+        // Simulate voltage compensation needed for consistent shots
+        // Returns per-shot data: actual RPM at constant voltage + voltage needed to compensate
+        function simulateVoltageCompensation(config, targetRPM, ballEnergy, numShots) {
+            const motor = MOTORS[config.mainMotorType];
+            const kv = config.mainUseFOC ? motor.kvFOC : motor.kvStandard;
+            const voltage = config.mainVoltage || 12;
+            const gearRatio = config.mainGearRatio;
+            const useFOC = config.mainUseFOC;
+            const ballsPerSec = config.ballsPerSec || 12;
+            const shotInterval = 1 / ballsPerSec;
+
+            // Motor recovery parameters
+            const stallTorque12V = getMotorStallTorque(config.mainMotorType, useFOC);
+            const stallTorque = stallTorque12V * (voltage / 12);
+            const wheelStallTorque = stallTorque / gearRatio;
+            const wheelFreeRPM = kv * voltage * gearRatio;
+            const wheelFreeOmega = wheelFreeRPM * (2 * Math.PI / 60);
+            const mainInertia = calculateMainShaftInertia(config);
+            const tau = mainInertia * wheelFreeOmega / wheelStallTorque; // voltage-independent
+            const decayFactor = Math.exp(-shotInterval / tau);
+
+            const results = [];
+            let currentRPM = targetRPM;
+
+            for (let i = 0; i < numShots; i++) {
+                // Ball energy scales with RPM^2
+                const rpmFraction = currentRPM / targetRPM;
+                const shotEnergy = ballEnergy * rpmFraction * rpmFraction;
+
+                // RPM drop from this shot
+                const dropInfo = calculateRPMDropAfterShot(config, currentRPM, shotEnergy);
+
+                // Voltage needed so that motor recovers from post-shot RPM to targetRPM
+                // in exactly shotInterval. From exponential model:
+                // targetRPM = RPM_free(V) × (1 - decayFactor) + RPM_after × decayFactor
+                // RPM_free(V) = kv × V × gearRatio
+                // Solving: V = (targetRPM - RPM_after × decayFactor) / (kv × gearRatio × (1 - decayFactor))
+                const rpmAfter = dropInfo.finalRPM;
+                const vRequired = (targetRPM - rpmAfter * decayFactor) / (kv * gearRatio * (1 - decayFactor));
+
+                results.push({
+                    shotNum: i + 1,
+                    rpmBefore: currentRPM,
+                    rpmAfter: rpmAfter,
+                    rpmDrop: dropInfo.rpmDrop,
+                    requiredVoltage: vRequired,
+                    voltageDelta: vRequired - voltage
+                });
+
+                // Recovery at constant initial voltage (what actually happens)
+                let recoveredRPM = wheelFreeRPM * (1 - decayFactor) + rpmAfter * decayFactor;
+                recoveredRPM = Math.min(recoveredRPM, targetRPM);
+                currentRPM = recoveredRPM;
+            }
+
+            return {
+                shots: results,
+                initialVoltage: voltage,
+                targetRPM: targetRPM,
+                shotInterval: shotInterval * 1000, // ms
+                ballsPerSec: ballsPerSec
+            };
+        }
+
+        // Draw the voltage compensation graph on a canvas
+        function drawVoltageCompensationGraph(canvasId, compData) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx2 = canvas.getContext('2d');
+
+            // Use pre-sized canvas dimensions (sized by sizeVoltageCanvas or resizeCanvas)
+            // If canvas hasn't been sized yet, size it now
+            if (canvas.width < 10) {
+                sizeVoltageCanvas();
+            }
+
+            const w = canvas.width;
+            const h = canvas.height;
+            // Scale fonts/elements based on canvas height (larger canvas = bigger text)
+            const fs = Math.max(1, h / 300);
+            const pad = {
+                top: Math.round(35 * fs),
+                right: Math.round(75 * fs),
+                bottom: Math.round(40 * fs),
+                left: Math.round(60 * fs)
+            };
+            const plotW = w - pad.left - pad.right;
+            const plotH = h - pad.top - pad.bottom;
+
+            const shots = compData.shots;
+            const numShots = shots.length;
+            if (numShots === 0) return;
+
+            // Data ranges
+            const voltages = shots.map(s => s.requiredVoltage);
+            const rpms = shots.map(s => s.rpmBefore);
+            const vMin = Math.min(compData.initialVoltage * 0.95, Math.min(...voltages) * 0.95);
+            const vMax = Math.max(12.5, Math.max(...voltages) * 1.05);
+            const rMin = Math.min(...rpms) * 0.95;
+            const rMax = compData.targetRPM * 1.05;
+
+            // Coordinate helpers
+            function xPos(shotNum) { return pad.left + (shotNum - 1) / (numShots - 1 || 1) * plotW; }
+            function yVolt(v) { return pad.top + plotH - (v - vMin) / (vMax - vMin) * plotH; }
+            function yRPM(r) { return pad.top + plotH - (r - rMin) / (rMax - rMin) * plotH; }
+
+            // Background
+            ctx2.fillStyle = '#0a0a0a';
+            ctx2.fillRect(0, 0, w, h);
+
+            // Font sizes scaled based on canvas height
+            const fontSm = Math.round(10 * fs) + 'px sans-serif';
+            const fontMd = Math.round(11 * fs) + 'px sans-serif';
+            const fontLg = 'bold ' + Math.round(12 * fs) + 'px sans-serif';
+            const dotR = 3 * fs;
+            const dotRV = 3.5 * fs;
+
+            // Grid
+            ctx2.strokeStyle = 'rgba(89, 0, 0, 0.2)';
+            ctx2.lineWidth = fs;
+            // Horizontal grid (voltage ticks)
+            const vStep = (vMax - vMin) > 6 ? 2 : (vMax - vMin) > 3 ? 1 : 0.5;
+            for (let v = Math.ceil(vMin / vStep) * vStep; v <= vMax; v += vStep) {
+                const y = yVolt(v);
+                ctx2.beginPath(); ctx2.moveTo(pad.left, y); ctx2.lineTo(w - pad.right, y); ctx2.stroke();
+            }
+            // Vertical grid
+            const showAllTicks = w > 600;
+            const xStep = showAllTicks ? 1 : Math.max(1, Math.floor(numShots / 10));
+            for (let s = 1; s <= numShots; s += xStep) {
+                const x = xPos(s);
+                ctx2.beginPath(); ctx2.moveTo(x, pad.top); ctx2.lineTo(x, h - pad.bottom); ctx2.stroke();
+            }
+
+            // Battery max reference line (12V)
+            ctx2.strokeStyle = 'rgba(255, 136, 0, 0.6)';
+            ctx2.lineWidth = fs;
+            ctx2.setLineDash([6 * fs, 4 * fs]);
+            const y12 = yVolt(12);
+            if (y12 >= pad.top && y12 <= h - pad.bottom) {
+                ctx2.beginPath(); ctx2.moveTo(pad.left, y12); ctx2.lineTo(w - pad.right, y12); ctx2.stroke();
+                ctx2.fillStyle = 'rgba(255, 136, 0, 0.8)';
+                ctx2.font = fontSm;
+                ctx2.textAlign = 'right';
+                ctx2.fillText('12V Battery Max', w - pad.right - 4, y12 - 5 * fs);
+            }
+
+            // Initial voltage reference line
+            ctx2.strokeStyle = 'rgba(100, 100, 100, 0.6)';
+            const yInit = yVolt(compData.initialVoltage);
+            if (yInit >= pad.top && yInit <= h - pad.bottom) {
+                ctx2.beginPath(); ctx2.moveTo(pad.left, yInit); ctx2.lineTo(w - pad.right, yInit); ctx2.stroke();
+                ctx2.fillStyle = 'rgba(150, 150, 150, 0.8)';
+                ctx2.font = fontSm;
+                ctx2.textAlign = 'right';
+                ctx2.fillText(compData.initialVoltage.toFixed(2) + 'V Set', w - pad.right - 4, yInit - 5 * fs);
+            }
+            ctx2.setLineDash([]);
+
+            // RPM line (cyan, right axis)
+            ctx2.strokeStyle = '#00aacc';
+            ctx2.lineWidth = 2 * fs;
+            ctx2.beginPath();
+            for (let i = 0; i < numShots; i++) {
+                const x = xPos(shots[i].shotNum);
+                const y = yRPM(shots[i].rpmBefore);
+                if (i === 0) ctx2.moveTo(x, y); else ctx2.lineTo(x, y);
+            }
+            ctx2.stroke();
+            // RPM dots
+            ctx2.fillStyle = '#00aacc';
+            for (let i = 0; i < numShots; i++) {
+                const x = xPos(shots[i].shotNum);
+                const y = yRPM(shots[i].rpmBefore);
+                ctx2.beginPath(); ctx2.arc(x, y, dotR, 0, Math.PI * 2); ctx2.fill();
+            }
+
+            // Voltage line (red, left axis)
+            ctx2.strokeStyle = '#cc3333';
+            ctx2.lineWidth = 2.5 * fs;
+            ctx2.beginPath();
+            for (let i = 0; i < numShots; i++) {
+                const x = xPos(shots[i].shotNum);
+                const y = yVolt(shots[i].requiredVoltage);
+                if (i === 0) ctx2.moveTo(x, y); else ctx2.lineTo(x, y);
+            }
+            ctx2.stroke();
+            // Voltage dots
+            for (let i = 0; i < numShots; i++) {
+                const x = xPos(shots[i].shotNum);
+                const y = yVolt(shots[i].requiredVoltage);
+                ctx2.fillStyle = shots[i].requiredVoltage <= 12 ? '#cc3333' : '#ff8800';
+                ctx2.beginPath(); ctx2.arc(x, y, dotRV, 0, Math.PI * 2); ctx2.fill();
+            }
+
+            // Draw value labels at select data points (skip some to avoid overlap)
+            if (w > 600) {
+                const labelFont = Math.round(9 * fs) + 'px sans-serif';
+                ctx2.font = labelFont;
+                // Show labels at: first, and evenly spaced — skip last if too close to previous
+                const labelStep = numShots <= 10 ? 2 : Math.ceil(numShots / 7);
+                let lastLabelI = -999;
+                for (let i = 0; i < numShots; i++) {
+                    const isLast = (i === numShots - 1);
+                    const isScheduled = (i === 0 || i % labelStep === 0);
+                    // Skip if too close to previous label
+                    if (!isScheduled && !isLast) continue;
+                    if (isLast && (i - lastLabelI) < labelStep) continue;
+                    lastLabelI = i;
+                    const x = xPos(shots[i].shotNum);
+                    // Voltage value (above the dot)
+                    ctx2.fillStyle = 'rgba(204, 51, 51, 0.85)';
+                    ctx2.textAlign = 'center';
+                    ctx2.fillText(shots[i].requiredVoltage.toFixed(2) + 'V', x, yVolt(shots[i].requiredVoltage) - 8 * fs);
+                    // RPM value (below the dot)
+                    ctx2.fillStyle = 'rgba(0, 170, 204, 0.85)';
+                    ctx2.fillText(Math.round(shots[i].rpmBefore), x, yRPM(shots[i].rpmBefore) + 14 * fs);
+                }
+            }
+
+            // Axes labels
+            ctx2.fillStyle = '#cc3333';
+            ctx2.font = fontMd;
+            ctx2.textAlign = 'center';
+            // Left axis (voltage)
+            ctx2.save();
+            ctx2.translate(14 * fs, pad.top + plotH / 2);
+            ctx2.rotate(-Math.PI / 2);
+            ctx2.fillText('Required Voltage (V)', 0, 0);
+            ctx2.restore();
+            // Left axis ticks
+            ctx2.textAlign = 'right';
+            ctx2.font = fontSm;
+            for (let v = Math.ceil(vMin / vStep) * vStep; v <= vMax; v += vStep) {
+                ctx2.fillStyle = '#cc3333';
+                ctx2.fillText(v.toFixed(1), pad.left - 5, yVolt(v) + 4 * fs);
+            }
+
+            // Right axis (RPM)
+            ctx2.fillStyle = '#00aacc';
+            ctx2.font = fontMd;
+            ctx2.textAlign = 'center';
+            ctx2.save();
+            ctx2.translate(w - 8, pad.top + plotH / 2);
+            ctx2.rotate(Math.PI / 2);
+            ctx2.fillText('RPM at Shot', 0, 0);
+            ctx2.restore();
+            // Right axis ticks
+            ctx2.textAlign = 'left';
+            ctx2.font = fontSm;
+            const rStep = (rMax - rMin) > 500 ? 200 : (rMax - rMin) > 200 ? 100 : 50;
+            for (let r = Math.ceil(rMin / rStep) * rStep; r <= rMax; r += rStep) {
+                ctx2.fillStyle = '#00aacc';
+                ctx2.fillText(Math.round(r), w - pad.right + 5, yRPM(r) + 4 * fs);
+            }
+
+            // X axis label
+            ctx2.fillStyle = '#888';
+            ctx2.font = fontMd;
+            ctx2.textAlign = 'center';
+            ctx2.fillText('Shot Number (' + compData.ballsPerSec + ' balls/sec)', pad.left + plotW / 2, h - 5);
+            // X axis ticks
+            ctx2.font = fontSm;
+            const xTickStep = showAllTicks ? 1 : Math.max(1, Math.floor(numShots / 10));
+            for (let s = 1; s <= numShots; s += xTickStep) {
+                ctx2.fillText(s, xPos(s), h - pad.bottom + 14 * fs);
+            }
+
+            // Title
+            ctx2.fillStyle = '#ddd';
+            ctx2.font = fontLg;
+            ctx2.textAlign = 'center';
+            ctx2.fillText('Voltage Compensation for Consistent Shots', w / 2, 18 * fs);
+
+            // Legend (top-left inside plot, with dark background)
+            ctx2.font = fontSm;
+            ctx2.textAlign = 'left';
+            const legLineW = 16 * fs;
+            const legLineH = 3 * fs;
+            const legPadX = 8 * fs;
+            const legPadY = 6 * fs;
+            const legTextW = ctx2.measureText('Required Voltage').width;
+            const legBoxW = legPadX + legLineW + 6 + legTextW + legPadX;
+            const legBoxH = legPadY + 14 * fs + legLineH + legPadY;
+            const legBoxX = pad.left + 6;
+            const legBoxY = h - pad.bottom - legBoxH - 6;
+            // Background
+            ctx2.fillStyle = 'rgba(10, 10, 10, 0.85)';
+            ctx2.strokeStyle = 'rgba(89, 0, 0, 0.3)';
+            ctx2.lineWidth = 1;
+            ctx2.beginPath();
+            ctx2.roundRect(legBoxX, legBoxY, legBoxW, legBoxH, 4 * fs);
+            ctx2.fill();
+            ctx2.stroke();
+            // Voltage legend entry
+            const legEntryX = legBoxX + legPadX;
+            const legEntryY1 = legBoxY + legPadY;
+            ctx2.fillStyle = '#cc3333';
+            ctx2.fillRect(legEntryX, legEntryY1, legLineW, legLineH);
+            ctx2.fillText('Required Voltage', legEntryX + legLineW + 6, legEntryY1 + legLineH + 1);
+            // RPM legend entry
+            const legEntryY2 = legEntryY1 + 14 * fs;
+            ctx2.fillStyle = '#00aacc';
+            ctx2.fillRect(legEntryX, legEntryY2, legLineW, legLineH);
+            ctx2.fillText('Actual RPM', legEntryX + legLineW + 6, legEntryY2 + legLineH + 1);
         }
 
         function calculateTrajectory(config, exitVelocity, spin) {
@@ -3117,6 +3532,45 @@
                 sustainedRating = 'POOR - Significant speed loss (' + minRPMPercent.toFixed(0) + '%)';
             }
             document.getElementById('resultSustainedFire').textContent = sustainedRating;
+
+            // Voltage compensation analysis
+            const compData = simulateVoltageCompensation(config, mainRPM, ballEnergy, 20);
+            lastCompData = compData;
+            // Only draw if voltage view is active (canvas must be visible to get correct size)
+            if (currentCanvasView === 'voltage') {
+                sizeVoltageCanvas();
+                drawVoltageCompensationGraph('voltageCompCanvas', lastCompData);
+            }
+
+            // Voltage needed for full recovery (shot 1 gives the baseline)
+            if (compData.shots.length > 0) {
+                const vNeeded = compData.shots[0].requiredVoltage;
+                const vColor = vNeeded <= 12 ? '' : ' style="color: #ff8800;"';
+                document.getElementById('resultVoltageNeeded').innerHTML =
+                    '<span' + vColor + '>' + vNeeded.toFixed(2) + 'V</span>' +
+                    (vNeeded > compData.initialVoltage ? ' (+' + (vNeeded - compData.initialVoltage).toFixed(2) + 'V)' : ' (OK)');
+
+                // Max shots where required voltage stays under 12V
+                let maxShots12V = compData.shots.length;
+                for (let i = 0; i < compData.shots.length; i++) {
+                    if (compData.shots[i].requiredVoltage > 12) {
+                        maxShots12V = i;
+                        break;
+                    }
+                }
+                document.getElementById('resultMaxShots12V').textContent =
+                    maxShots12V >= 20 ? '20+ (all clear)' : maxShots12V + ' shots';
+
+                // Shot 20 stats
+                const shot20 = compData.shots[compData.shots.length - 1];
+                document.getElementById('resultRPMShot20').textContent =
+                    Math.round(shot20.rpmBefore) + ' RPM (' +
+                    ((shot20.rpmBefore / mainRPM) * 100).toFixed(0) + '%)';
+
+                const v20Color = shot20.requiredVoltage <= 12 ? '' : ' style="color: #ff8800;"';
+                document.getElementById('resultVoltageShot20').innerHTML =
+                    '<span' + v20Color + '>' + shot20.requiredVoltage.toFixed(2) + 'V</span>';
+            }
 
             // Update graph overlay stats
             graphStats.spinUpTime = (spinUpTime * 1000).toFixed(0) + ' ms';
@@ -4230,6 +4684,7 @@
             document.getElementById('shareCodeText').value = code;
             document.getElementById('shareCodeArea').style.display = 'block';
             document.getElementById('loadCodeArea').style.display = 'none';
+            document.getElementById('onshapeCodeArea').style.display = 'none';
         });
 
         // Share Code: Copy to clipboard
@@ -4247,6 +4702,7 @@
         document.getElementById('loadCodeBtn').addEventListener('click', function() {
             document.getElementById('loadCodeArea').style.display = 'block';
             document.getElementById('shareCodeArea').style.display = 'none';
+            document.getElementById('onshapeCodeArea').style.display = 'none';
         });
 
         // Share Code: Apply pasted code
@@ -4275,6 +4731,28 @@
             } catch (err) {
                 alert('Invalid share code. Please check and try again.');
             }
+        });
+
+        // Onshape Code: Generate
+        document.getElementById('onshapeCodeBtn').addEventListener('click', function() {
+            var config = getConfig();
+            var motorCode = config.mainMotorType === 'x44' ? 1 : 2;
+            var code = config.mainWheelDia + ',' + config.backWheelDia + ',' + config.compression + ',' + config.angle + ',' + (config.numBackStages || 1) + ',' + motorCode;
+            document.getElementById('onshapeCodeText').value = code;
+            document.getElementById('onshapeCodeArea').style.display = 'block';
+            document.getElementById('shareCodeArea').style.display = 'none';
+            document.getElementById('loadCodeArea').style.display = 'none';
+        });
+
+        // Onshape Code: Copy to clipboard
+        document.getElementById('copyOnshapeCodeBtn').addEventListener('click', function() {
+            var textarea = document.getElementById('onshapeCodeText');
+            textarea.select();
+            document.execCommand('copy');
+            document.getElementById('copyOnshapeCodeBtn').textContent = 'Copied!';
+            setTimeout(function() {
+                document.getElementById('copyOnshapeCodeBtn').textContent = 'Copy Onshape Code';
+            }, 2000);
         });
 
         // Add current trajectory to graph as overlay
